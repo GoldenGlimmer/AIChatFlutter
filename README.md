@@ -264,4 +264,4 @@ https://github.com/GoldenGlimmer
 
 # License
 
-MIT
+MIT License
