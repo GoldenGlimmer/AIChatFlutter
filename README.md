@@ -217,6 +217,42 @@ flutter run
 
 ---
 
+## Screenshots
+
+### Chat Interface
+
+Общение в режиме реального времени/
+
+![Chat](assets/screenshots/chat.png)
+
+### Model Selection
+
+![Model_Selection](assets/screenshots/model_selection.png)
+
+### Usage Statistics
+
+Анализ использования токенов, баланса и моделей.
+
+![Statistics](assets/screenshots/statistics.png)
+
+### Expense Tracking
+
+Визуализация ежедневных расходов с помощью диаграммы.
+
+![Expenses](assets/screenshots/expenses.png)
+
+### Settings Screen
+
+Настройка провайдера и управление ключами API.
+
+![Settings](assets/screenshots/settings.png)
+
+### Error snackbar
+
+Демонстрация ошибки
+
+![Error_Snackbar](assets/screenshots/error_snackbar.png)
+
 # Author
 
 GitHub:
