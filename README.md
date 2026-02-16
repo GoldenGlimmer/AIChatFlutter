@@ -1,118 +1,229 @@
-# AIChatFlutter - Чат-приложение с ИИ
+# AIChatFlutter — Production-Ready AI Chat Client (Flutter)
 
-AIChatFlutter - это мультиплатформенное приложение для общения с искусственным интеллектом, разработанное с использованием Flutter. Приложение поддерживает работу как с OpenRouter.ai, так и с VseGPT.ru, предоставляя гибкие возможности для взаимодействия с различными языковыми моделями.
+Production-ready Flutter приложение для общения с AI через OpenRouter и VseGPT с аналитикой расходов, статистикой использования и современной layered architecture.
 
-## Поддержка API
+Проект разработан как portfolio-level production application.
 
-### OpenRouter.ai
-- Баланс отображается в долларах ($)
-- Стоимость сообщений рассчитывается в долларах за миллион токенов
-- Широкий выбор языковых моделей от разных провайдеров
-- Единый API для доступа к различным моделям
+---
 
-### VseGPT.ru
-- Баланс отображается в рублях (₽)
-- Стоимость сообщений рассчитывается в рублях за тысячу токенов
-- Доступ к популярным моделям с оплатой в рублях
-- Оптимизировано для пользователей из России
+# Features
 
-## Структура проекта
+## AI Chat
 
-Основные директории и файлы:
+- Поддержка OpenRouter.ai и VseGPT.ru
+- Выбор моделей
+- Отправка и получение сообщений
+- Подсчёт токенов
+- Подсчёт стоимости сообщений
+- Отображение баланса
 
-- `lib/` - Основной код приложения
-  - `main.dart` - Точка входа в приложение
-  - `api/` - Модули для работы с API
-    - `openrouter_client.dart` - Универсальный клиент для работы с OpenRouter и VseGPT
-  - `models/` - Модели данных
-    - `message.dart` - Модель сообщения с поддержкой токенов и стоимости
-  - `providers/` - State management
-    - `chat_provider.dart` - Провайдер для управления состоянием чата
-  - `services/` - Сервисы
-    - `database_service.dart` - Сервис для работы с локальной базой данных
-    - `analytics_service.dart` - Сервис для сбора и анализа статистики
-  - `screens/` - Экраны приложения
-    - `chat_screen.dart` - Основной экран чата
-- `android/`, `ios/`, `windows/`, `linux/` - Платформо-зависимые конфигурации
-- `assets/` - Ресурсы приложения
-- `pubspec.yaml` - Зависимости проекта
+---
 
-## Основные модули
+## Settings Screen
 
-### ChatProvider
-- Управление состоянием чата и историей сообщений
-- Взаимодействие с API (OpenRouter/VseGPT)
-- Отслеживание баланса и расходов
-- Управление моделями и их настройками
+Настройка прямо в приложении:
 
-### Message
-- Хранение текста сообщений
-- Учет использованных токенов
-- Расчет стоимости сообщений
-- Метаданные (временные метки, модель)
+- API key
+- Provider selection
+- Base URL
+- Max tokens
+- Temperature
 
-### OpenRouterClient
-- Унифицированный интерфейс для работы с API
-- Автоматическое определение провайдера (OpenRouter/VseGPT)
-- Форматирование цен в соответствии с провайдером
-- Обработка ошибок и повторные попытки
+.env file не используется.
 
-### DatabaseService
-- Локальное хранение истории сообщений
-- Кэширование данных
-- Экспорт истории
-- Статистика использования
+---
 
-### AnalyticsService
-- Сбор статистики использования
-- Анализ эффективности моделей
-- Отслеживание времени ответа
-- Анализ использования токенов
+## Analytics / Statistics
 
-## Функциональность приложения
+Отслеживание:
 
-### Основные возможности
-- Обмен сообщениями с различными языковыми моделями
-- Выбор модели из доступного списка
-- Отображение баланса в соответствующей валюте ($/₽)
-- Подсчет стоимости каждого сообщения
-- Отслеживание использования токенов
+- total tokens
+- total cost
+- model usage
+- response times
 
-### Управление чатом
-- Сохранение истории сообщений
-- Экспорт истории в JSON
-- Копирование сообщений в буфер обмена
-- Очистка истории
+---
 
-### Аналитика
-- Статистика использования моделей
-- Анализ времени ответа
-- Отслеживание расхода токенов
-- Экспорт аналитических данных
+## Expenses Screen
 
-### Интерфейс
-- Темный режим
-- Адаптивный дизайн
-- Поддержка русского и английского языков
-- Информативные уведомления
+График расходов:
 
-### Технические особенности
-- Кроссплатформенность (Android, iOS, Windows, Linux)
-- Локальное хранение данных
-- Оффлайн доступ к истории
-- Обработка ошибок сети
+- расходы по дням
+- total expenses
+- persistent storage
+- immutable data model
 
-## Начало работы
+---
 
-1. Клонируйте репозиторий
-2. Создайте файл `.env` на основе `.env.example`
-3. Добавьте свой API ключ (OpenRouter или VseGPT)
-4. Следуйте инструкциям в [INSTALL.md](INSTALL.md) для установки зависимостей и запуска
+## Production Error Handling
 
-## Конфигурация
+State-driven error system:
 
-Для работы приложения необходимо указать в файле `.env`:
-- `OPENROUTER_API_KEY` - API ключ от OpenRouter.ai или VseGPT.ru
-- `BASE_URL` - URL API (https://openrouter.ai/api/v1 или https://api.vsetgpt.ru/v1)
-- `MAX_TOKENS` - Максимальное количество токенов для ответа
-- `TEMPERATURE` - Температура генерации (0.0 - 1.0)
+- missing API key
+- invalid API key
+- network errors
+- API errors
+
+Без использования exceptions для управления логикой.
+
+---
+
+# Architecture
+
+Используется layered clean architecture:
+
+```
+lib/
+
+ api/
+   openrouter_client.dart
+   → REST API client
+
+ models/
+   message.dart
+   chat_error.dart
+   expenses_data.dart
+   → immutable data models
+
+ providers/
+   chat_provider.dart
+   expenses_provider.dart
+   → state management
+
+ repositories/
+   expenses_repository.dart
+   → business logic layer
+   → abstraction between provider and services
+
+ services/
+   analytics_service.dart
+   database_service.dart
+   settings_service.dart
+   → persistence layer
+
+ screens/
+   chat_screen.dart
+   settings_screen.dart
+   statistics_screen.dart
+   expenses_screen.dart
+   → UI layer
+
+ utils/
+   safe_parsing.dart
+   → safe JSON parsing utilities
+
+ main.dart
+   → app entry point
+```
+
+---
+
+# Architecture Overview
+
+Layer responsibilities:
+
+UI (screens)
+↓
+Providers (state)
+↓
+Repositories (business logic)
+↓
+Services (data access)
+↓
+API / Database
+
+Это production architecture pattern.
+
+---
+
+# Tech Stack
+
+- Flutter
+- Dart
+- Provider
+- SQLite
+- REST API
+- OpenRouter API
+- VseGPT API
+- Charts
+- Clean architecture
+
+---
+
+# Persistence
+
+Локально сохраняется:
+
+- chat history
+- settings
+- analytics
+- expenses
+- selected model
+
+---
+
+# Installation
+
+```
+git clone https://github.com/GoldenGlimmer/AIChatFlutter.git
+cd AIChatFlutter
+flutter pub get
+flutter run
+```
+
+---
+
+# Configuration
+
+Настройка выполняется через Settings Screen.
+
+.env file не требуется.
+
+---
+
+# Supported Platforms
+
+- Windows
+- Android
+- Linux
+- (Flutter multi-platform ready)
+
+---
+
+# Production-level features
+
+- layered architecture
+- repository pattern
+- provider state management
+- immutable models
+- persistent storage
+- analytics system
+- safe parsing layer
+- production error handling
+
+---
+
+# Portfolio project
+
+Проект демонстрирует навыки:
+
+- Flutter development
+- clean architecture
+- REST API integration
+- state management
+- persistent storage
+- analytics systems
+- production error handling
+
+---
+
+# Author
+
+GitHub:
+https://github.com/GoldenGlimmer
+
+---
+
+# License
+
+MIT
