@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 // Импорт для работы с провайдерами состояния
 import 'package:provider/provider.dart';
-// Импорт для работы со шрифтами Google
-import 'package:google_fonts/google_fonts.dart';
 // Импорт провайдера чата
 import '../providers/chat_provider.dart';
 // Импорт модели сообщения
 import '../models/message.dart';
+// Импорт модели ошибок чата
+import '../models/chat_error.dart';
 
 // Виджет для обработки ошибок в UI
 class ErrorBoundary extends StatelessWidget {
@@ -36,6 +36,63 @@ class ErrorBoundary extends StatelessWidget {
           );
         }
       },
+    );
+  }
+}
+
+// Виджет для отслеживания ошибок чата и показа Snackbar
+class _ErrorListener extends StatelessWidget {
+  final Widget child;
+
+  const _ErrorListener({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<ChatProvider, ChatError>(
+      selector: (context, provider) => provider.error,
+      builder: (context, error, child) {
+        // Если есть ошибка, показываем Snackbar через addPostFrameCallback
+        if (error != ChatError.none) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final provider = context.read<ChatProvider>();
+            
+            // Определяем цвет Snackbar в зависимости от типа ошибки
+            final Color backgroundColor;
+            switch (error) {
+              case ChatError.apiKeyMissing:
+                backgroundColor = Colors.orange;
+                break;
+              case ChatError.invalidApiKey:
+                backgroundColor = Colors.red;
+                break;
+              case ChatError.networkError:
+                backgroundColor = Colors.orange;
+                break;
+              case ChatError.serverError:
+                backgroundColor = Colors.red;
+                break;
+              case ChatError.none:
+                backgroundColor = Colors.green;
+                break;
+            }
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  error.message,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                backgroundColor: backgroundColor,
+              ),
+            );
+            
+            // Очищаем состояние ошибки после показа
+            provider.clearError();
+          });
+        }
+        return child!;
+      },
+      child: child,
     );
   }
 }
@@ -75,10 +132,9 @@ class _MessageBubble extends StatelessWidget {
             ),
             child: SelectableText(
               message.cleanContent,
-              style: GoogleFonts.roboto(
+              style: const TextStyle(
                 color: Colors.white,
-                fontSize: 13,
-                locale: const Locale('ru', 'RU'),
+                fontSize: 13,                
               ),
             ),
           ),
@@ -235,18 +291,20 @@ class ChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ErrorBoundary(
-      child: Scaffold(
-        backgroundColor: const Color(0xFF1E1E1E),
-        appBar: _buildAppBar(context),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: _buildMessagesList(),
-              ),
-              _buildInputArea(context),
-              _buildActionButtons(context),
-            ],
+      child: _ErrorListener(
+        child: Scaffold(
+          backgroundColor: const Color(0xFF1E1E1E),
+          appBar: _buildAppBar(context),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: _buildMessagesList(),
+                ),
+                _buildInputArea(context),
+                _buildActionButtons(context),
+              ],
+            ),
           ),
         ),
       ),
@@ -465,9 +523,10 @@ class ChatScreen extends StatelessWidget {
         children: [
           Expanded(
             child: _MessageInput(
-              onSubmitted: (String text) {
+              onSubmitted: (String text) async {
                 if (text.trim().isNotEmpty) {
-                  context.read<ChatProvider>().sendMessage(text);
+                  // Просто вызываем sendMessage, ошибки обрабатываются через _ErrorListener
+                  await context.read<ChatProvider>().sendMessage(text);
                 }
               },
             ),

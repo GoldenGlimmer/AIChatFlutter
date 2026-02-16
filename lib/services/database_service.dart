@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' if (dart.library.html) '';
 // Импорт модели сообщения
 import '../models/message.dart';
+// Импорт утилит безопасного парсинга
+import '../utils/safe_parsing.dart';
 
 // Класс сервиса для работы с базой данных
 class DatabaseService {
@@ -108,8 +110,8 @@ class DatabaseService {
           timestamp:
               DateTime.parse(maps[i]['timestamp'] as String), // Временная метка
           modelId: maps[i]['model_id'] as String?, // Идентификатор модели
-          tokens: maps[i]['tokens'] as int?, // Количество токенов
-          cost: maps[i]['cost'] as double?, // Стоимость запроса
+          tokens: parseInt(maps[i]['tokens']), // Количество токенов
+          cost: parseDouble(maps[i]['cost']), // Стоимость запроса
         );
       });
     } catch (e) {
@@ -159,9 +161,9 @@ class DatabaseService {
       for (final stat in modelStats) {
         final modelId = stat['model_id'] as String;
         modelUsage[modelId] = {
-          'count': stat['message_count'] as int, // Количество сообщений
+          'count': parseInt(stat['message_count']) ?? 0, // Количество сообщений
           'tokens':
-              stat['total_tokens'] as int? ?? 0, // Общее количество токенов
+              parseInt(stat['total_tokens']) ?? 0, // Общее количество токенов
         };
       }
 
@@ -176,6 +178,60 @@ class DatabaseService {
         'total_messages': 0,
         'total_tokens': 0,
         'model_usage': {},
+      };
+    }
+  }
+
+  // Метод получения ежедневных расходов за последние N дней
+  Future<Map<String, dynamic>> getDailyExpenses({int days = 30}) async {
+    try {
+      final db = await database;
+
+      // Получение агрегированных данных по дням
+      final results = await db.rawQuery('''
+        SELECT 
+          DATE(timestamp) as date,
+          SUM(cost) as daily_cost
+        FROM messages 
+        WHERE cost IS NOT NULL AND cost > 0
+          AND timestamp >= date('now', '-$days days')
+        GROUP BY DATE(timestamp)
+        ORDER BY date ASC
+      ''');
+
+      // Создаем словарь с данными из базы
+      final expensesMap = <String, double>{};
+      for (final row in results) {
+        final date = row['date'] as String;
+        final cost = parseDouble(row['daily_cost']) ?? 0.0;
+        expensesMap[date] = cost;
+      }
+
+      // Генерируем все 30 дней и заполняем пробелы нулями
+      final daily = <Map<String, dynamic>>[];
+      double total = 0.0;
+      final now = DateTime.now();
+      
+      for (int i = days - 1; i >= 0; i--) {
+        final date = now.subtract(Duration(days: i));
+        final dateStr = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        final cost = expensesMap[dateStr] ?? 0.0;
+        daily.add({'date': dateStr, 'cost': cost});
+        total += cost;
+      }
+
+      return {
+        'daily': daily,
+        'total': total,
+      };
+    } catch (e) {
+      debugPrint('Error getting daily expenses: $e');
+      return {
+        'daily': List.generate(days, (i) => {
+          'date': DateTime.now().subtract(Duration(days: days - 1 - i)).toIso8601String().split('T')[0],
+          'cost': 0.0,
+        }),
+        'total': 0.0,
       };
     }
   }

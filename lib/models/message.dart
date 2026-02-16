@@ -1,5 +1,7 @@
 // Импорт основных классов Flutter
 import 'package:flutter/foundation.dart';
+// Импорт утилит безопасного парсинга
+import '../utils/safe_parsing.dart';
 
 // Класс, представляющий сообщение в чате
 class ChatMessage {
@@ -50,8 +52,8 @@ class ChatMessage {
         timestamp: DateTime.parse(
             json['timestamp'] as String), // Парсинг временной метки
         modelId: json['modelId'] as String?, // Получение идентификатора модели
-        tokens: json['tokens'] as int?, // Получение количества токенов
-        cost: json['cost'] as double?, // Получение стоимости запроса
+        tokens: parseInt(json['tokens']), // Получение количества токенов
+        cost: parseDouble(json['cost']), // Получение стоимости запроса
       );
     } catch (e) {
       // Логирование ошибок при декодировании
@@ -62,7 +64,7 @@ class ChatMessage {
         isUser: json['isUser'] as bool,
         timestamp: DateTime.parse(json['timestamp'] as String),
         modelId: json['modelId'] as String?,
-        tokens: json['tokens'] as int?,
+        tokens: parseInt(json['tokens']),
       );
     }
   }

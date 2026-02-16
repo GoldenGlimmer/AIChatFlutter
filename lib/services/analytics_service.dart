@@ -1,8 +1,10 @@
 // Импорт основных классов Flutter
 import 'package:flutter/foundation.dart';
+// Импорт утилит безопасного парсинга
+import '../utils/safe_parsing.dart';
 
 // Сервис для сбора и анализа статистики использования чата
-class AnalyticsService {
+class AnalyticsService extends ChangeNotifier {
   // Единственный экземпляр класса (Singleton)
   static final AnalyticsService _instance = AnalyticsService._internal();
   // Время начала сессии
@@ -47,6 +49,9 @@ class AnalyticsService {
         'response_time': responseTime,
         'tokens_used': tokensUsed,
       });
+
+      // Уведомление слушателей об изменении статистики
+      notifyListeners();
     } catch (e) {
       debugPrint('Error tracking message: $e');
     }
@@ -127,7 +132,7 @@ class AnalyticsService {
     if (_sessionData.isEmpty) return {};
 
     final responseTimes =
-        _sessionData.map((data) => data['response_time'] as double).toList();
+        _sessionData.map((data) => parseDouble(data['response_time']) ?? 0.0).toList();
 
     responseTimes.sort();
     final count = responseTimes.length;
@@ -149,7 +154,7 @@ class AnalyticsService {
     if (_sessionData.isEmpty) return {};
 
     final lengths =
-        _sessionData.map((data) => data['message_length'] as int).toList();
+        _sessionData.map((data) => parseInt(data['message_length']) ?? 0).toList();
 
     final count = lengths.length;
     final total = lengths.reduce((a, b) => a + b);

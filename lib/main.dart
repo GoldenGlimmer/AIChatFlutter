@@ -1,15 +1,24 @@
 // Импорт основных виджетов Flutter
 import 'package:flutter/material.dart';
-// Импорт пакета для работы с .env файлами
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 // Импорт пакета для локализации приложения
 import 'package:flutter_localizations/flutter_localizations.dart';
 // Импорт пакета для работы с провайдерами состояния
 import 'package:provider/provider.dart';
 // Импорт кастомного провайдера для управления состоянием чата
 import 'providers/chat_provider.dart';
-// Импорт основного экрана чата
+// Импорт провайдера расходов
+import 'providers/expenses_provider.dart';
+// Импорт сервиса настроек
+import 'services/settings_service.dart';
+// Импорт сервиса аналитики
+import 'services/analytics_service.dart';
+// Импорт репозитория расходов
+import 'repositories/expenses_repository.dart';
+// Импорт экранов приложения
 import 'screens/chat_screen.dart';
+import 'screens/settings_screen.dart';
+import 'screens/statistics_screen.dart';
+import 'screens/expenses_screen.dart';
 
 // Виджет для обработки и отлова ошибок в приложении
 class ErrorBoundaryWidget extends StatelessWidget {
@@ -81,17 +90,16 @@ void main() async {
       debugPrint('Stack trace: ${details.stack}');
     };
 
-    // Загрузка переменных окружения из .env файла
-    await dotenv.load(fileName: ".env");
-    // Логирование успешной загрузки
-    debugPrint('Environment loaded');
-    // Проверка наличия API ключа
-    debugPrint('API Key present: ${dotenv.env['OPENROUTER_API_KEY'] != null}');
-    // Логирование базового URL
-    debugPrint('Base URL: ${dotenv.env['BASE_URL']}');
+
+
+    // Инициализация SharedPreferences и SettingsService
+    final settingsService = await SettingsService.create();
+    debugPrint('SettingsService initialized');
 
     // Запуск приложения с обработчиком ошибок
-    runApp(const ErrorBoundaryWidget(child: MyApp()));
+    runApp(ErrorBoundaryWidget(
+      child: MyApp(settingsService: settingsService),
+    ));
   } catch (e, stackTrace) {
     // Логирование ошибки запуска приложения
     debugPrint('Error starting app: $e');
@@ -117,30 +125,120 @@ void main() async {
   }
 }
 
+// Основной виджет с навигацией (MainScaffold)
+class MainScaffold extends StatefulWidget {
+  const MainScaffold({super.key});
+
+  @override
+  State<MainScaffold> createState() => _MainScaffoldState();
+}
+
+// Состояние MainScaffold с BottomNavigationBar
+class _MainScaffoldState extends State<MainScaffold> {
+  // Индекс выбранной вкладки
+  int _selectedIndex = 0;
+
+  // Список экранов для навигации
+  final List<Widget> _pages = const [
+    ChatScreen(),
+    StatisticsScreen(),
+    ExpensesScreen(),
+    SettingsScreen(),
+  ];
+
+  // Названия вкладок
+  final List<String> _titles = const [
+    'Чат',
+    'Статистика',
+    'Расходы',
+    'Настройки',
+  ];
+
+  // Иконки вкладок
+  final List<IconData> _icons = const [
+    Icons.chat_bubble,
+    Icons.analytics,
+    Icons.show_chart,
+    Icons.settings,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFF262626),
+        selectedItemColor: const Color(0xFF1A73E8),
+        unselectedItemColor: Colors.white54,
+        selectedLabelStyle: const TextStyle(fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
+        items: List.generate(_titles.length, (index) {
+          return BottomNavigationBarItem(
+            icon: Icon(_icons[index]),
+            label: _titles[index],
+          );
+        }),
+      ),
+    );
+  }
+}
+
 // Основной виджет приложения
 class MyApp extends StatelessWidget {
-  // Конструктор с ключом
-  const MyApp({super.key});
+  // Сервис настроек
+  final SettingsService settingsService;
+
+  // Конструктор с ключом и сервисом настроек
+  const MyApp({super.key, required this.settingsService});
 
   // Метод построения виджета
   @override
   Widget build(BuildContext context) {
-    // Используем ChangeNotifierProvider для управления состоянием
-    return ChangeNotifierProvider(
-      // Функция создания провайдера
-      create: (_) {
-        try {
-          // Создаем экземпляр ChatProvider
-          return ChatProvider();
-        } catch (e, stackTrace) {
-          // Логирование ошибки создания провайдера
-          debugPrint('Error creating ChatProvider: $e');
-          // Логирование стека вызовов
-          debugPrint('Stack trace: $stackTrace');
-          // Повторный выброс исключения
-          rethrow;
-        }
-      },
+    // Используем MultiProvider для управления зависимостями
+    return MultiProvider(
+      providers: [
+        // SettingsService как обычный Provider (не ChangeNotifier)
+        Provider<SettingsService>.value(value: settingsService),
+        // AnalyticsService как ChangeNotifierProvider для реактивности
+        ChangeNotifierProvider<AnalyticsService>(
+          create: (_) => AnalyticsService(),
+        ),
+        // ExpensesRepository как обычный Provider
+        Provider<ExpensesRepository>(
+          create: (_) => DatabaseExpensesRepository(),
+        ),
+        // ExpensesProvider с внедрением ExpensesRepository
+        ChangeNotifierProvider<ExpensesProvider>(
+          create: (context) => ExpensesProvider(
+            repository: context.read<ExpensesRepository>(),
+          ),
+        ),
+        // ChatProvider с внедрением SettingsService и ExpensesProvider
+        ChangeNotifierProvider<ChatProvider>(
+          create: (context) {
+            try {
+              // Создаем экземпляр ChatProvider с SettingsService
+              final chatProvider = ChatProvider(context.read<SettingsService>());
+              // Устанавливаем связь с ExpensesProvider для обновления расходов
+              chatProvider.setExpensesProvider(context.read<ExpensesProvider>());
+              return chatProvider;
+            } catch (e, stackTrace) {
+              // Логирование ошибки создания провайдера
+              debugPrint('Error creating ChatProvider: $e');
+              // Логирование стека вызовов
+              debugPrint('Stack trace: $stackTrace');
+              // Повторный выброс исключения
+              rethrow;
+            }
+          },
+        ),
+      ],
       // Основной виджет MaterialApp
       child: MaterialApp(
         // Настройка поведения прокрутки
@@ -185,7 +283,7 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.white, // Цвет текста
           ),
           // Настройка темы диалогов
-          dialogTheme: const DialogTheme(
+          dialogTheme: const DialogThemeData(
             backgroundColor: Color(0xFF333333), // Цвет фона
             titleTextStyle: TextStyle(
               color: Colors.white, // Цвет заголовка
@@ -233,8 +331,8 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        // Основной экран приложения
-        home: const ChatScreen(),
+        // Основной экран приложения с навигацией
+        home: const MainScaffold(),
       ),
     );
   }

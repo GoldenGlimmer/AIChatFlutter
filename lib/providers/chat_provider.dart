@@ -8,17 +8,23 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 // Импорт модели сообщения
 import '../models/message.dart';
+// Импорт модели ошибок чата
+import '../models/chat_error.dart';
 // Импорт клиента для работы с API
 import '../api/openrouter_client.dart';
 // Импорт сервиса для работы с базой данных
 import '../services/database_service.dart';
 // Импорт сервиса для аналитики
 import '../services/analytics_service.dart';
+// Импорт сервиса настроек
+import '../services/settings_service.dart';
+// Импорт провайдера расходов
+import 'expenses_provider.dart';
 
 // Основной класс провайдера для управления состоянием чата
 class ChatProvider with ChangeNotifier {
-  // Клиент для работы с API
-  final OpenRouterClient _api = OpenRouterClient();
+  // Сервис настроек
+  final SettingsService _settings;
   // Список сообщений чата
   final List<ChatMessage> _messages = [];
   // Логи для отладки
@@ -31,6 +37,32 @@ class ChatProvider with ChangeNotifier {
   String _balance = '\$0.00';
   // Флаг загрузки
   bool _isLoading = false;
+  // Состояние ошибки чата
+  ChatError _error = ChatError.none;
+  // Ссылка на ExpensesProvider для обновления расходов
+  ExpensesProvider? _expensesProvider;
+
+  /// Создает клиент API или возвращает null если API ключ отсутствует
+  /// 
+  /// При отсутствии ключа устанавливает состояние ошибки [ChatError.apiKeyMissing]
+  OpenRouterClient? _createClientOrNull() {
+    final apiKey = _settings.apiKey;
+
+    if (apiKey == null || apiKey.trim().isEmpty) {
+      _setError(ChatError.apiKeyMissing);
+      return null;
+    }
+
+    return OpenRouterClient(
+      apiKey: apiKey.trim(),
+      baseUrl: _settings.baseUrl,
+    );
+  }
+
+  // Метод для установки ExpensesProvider
+  void setExpensesProvider(ExpensesProvider provider) {
+    _expensesProvider = provider;
+  }
 
   // Метод для логирования сообщений
   void _log(String message) {
@@ -50,32 +82,45 @@ class ChatProvider with ChangeNotifier {
   String get balance => _balance;
   // Геттер для получения состояния загрузки
   bool get isLoading => _isLoading;
+  // Геттер для получения состояния ошибки
+  ChatError get error => _error;
 
   // Геттер для получения базового URL
-  String? get baseUrl => _api.baseUrl;
+  String? get baseUrl => _settings.baseUrl;
 
-  // Конструктор провайдера
-  ChatProvider() {
+  // Конструктор провайдера с внедрением зависимостей
+  ChatProvider(this._settings) {
     // Инициализация провайдера
     _initializeProvider();
+  }
+
+  /// Устанавливает состояние ошибки и уведомляет слушателей
+  void _setError(ChatError error) {
+    if (_error == error) return;
+    _error = error;
+    notifyListeners();
+  }
+
+  /// Очищает состояние ошибки
+  void clearError() {
+    _error = ChatError.none;
+    notifyListeners();
   }
 
   // Метод инициализации провайдера
   Future<void> _initializeProvider() async {
     try {
-      // Логирование начала инициализации
+      if (_settings.apiKey == null ||
+          _settings.apiKey!.trim().isEmpty) {
+        _log('API key not set, skipping initialization');
+        return;
+      }
+
       _log('Initializing provider...');
-      // Загрузка доступных моделей
       await _loadModels();
-      _log('Models loaded: $_availableModels');
-      // Загрузка баланса
       await _loadBalance();
-      _log('Balance loaded: $_balance');
-      // Загрузка истории сообщений
       await _loadHistory();
-      _log('History loaded: ${_messages.length} messages');
     } catch (e, stackTrace) {
-      // Логирование ошибок инициализации
       _log('Error initializing provider: $e');
       _log('Stack trace: $stackTrace');
     }
@@ -84,14 +129,21 @@ class ChatProvider with ChangeNotifier {
   // Метод загрузки доступных моделей
   Future<void> _loadModels() async {
     try {
+      // Создаем клиент или выходим если API ключ отсутствует
+      final client = _createClientOrNull();
+      if (client == null) return;
+
       // Получение списка моделей из API
-      _availableModels = await _api.getModels();
+      _availableModels = await client.getModels();
       // Сортировка моделей по имени по возрастанию
       _availableModels
           .sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
-      // Установка модели по умолчанию, если она не выбрана
-      if (_availableModels.isNotEmpty && _currentModel == null) {
-        _currentModel = _availableModels[0]['id'];
+      // Установка модели из настроек или первая доступная
+      if (_availableModels.isNotEmpty) {
+        final savedModel = _settings.model;
+        // Проверяем, есть ли сохраненная модель в списке доступных
+        final modelExists = _availableModels.any((m) => m['id'] == savedModel);
+        _currentModel = modelExists ? savedModel : _availableModels[0]['id'];
       }
       // Уведомление слушателей об изменениях
       notifyListeners();
@@ -104,8 +156,12 @@ class ChatProvider with ChangeNotifier {
   // Метод загрузки баланса пользователя
   Future<void> _loadBalance() async {
     try {
+      // Создаем клиент или выходим если API ключ отсутствует
+      final client = _createClientOrNull();
+      if (client == null) return;
+
       // Получение баланса из API
-      _balance = await _api.getBalance();
+      _balance = await client.getBalance();
       // Уведомление слушателей об изменениях
       notifyListeners();
     } catch (e) {
@@ -148,12 +204,11 @@ class ChatProvider with ChangeNotifier {
 
   // Метод отправки сообщения
   Future<void> sendMessage(String content, {bool trackAnalytics = true}) async {
-    // Проверка на пустое сообщение или отсутствие модели
     if (content.trim().isEmpty || _currentModel == null) return;
 
     // Установка флага загрузки
     _isLoading = true;
-    // Уведомление слушателей об изменениях
+    // Уведомление пользователя об изменениях
     notifyListeners();
 
     try {
@@ -176,8 +231,21 @@ class ChatProvider with ChangeNotifier {
       // Запись времени начала отправки
       final startTime = DateTime.now();
 
-      // Отправка сообщения в API
-      final response = await _api.sendMessage(content, _currentModel!);
+      // Создаем клиент или выходим если API ключ отсутствует
+      final client = _createClientOrNull();
+      if (client == null) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Отправка сообщения в API с параметрами из настроек
+      final response = await client.sendMessage(
+        message: content,
+        model: _currentModel!,
+        maxTokens: _settings.maxTokens,
+        temperature: _settings.temperature,
+      );
       // Логирование ответа API
       _log('API Response: $response');
 
@@ -186,7 +254,7 @@ class ChatProvider with ChangeNotifier {
           DateTime.now().difference(startTime).inMilliseconds / 1000;
 
       if (response.containsKey('error')) {
-        // Добавление сообщения об ошибке
+        // Добавление сообщения об ошибке от API (не исключение)
         final errorMessage = ChatMessage(
           content: utf8.decode(utf8.encode('Error: ${response['error']}')),
           isUser: false,
@@ -205,8 +273,13 @@ class ChatProvider with ChangeNotifier {
         final aiContent = utf8.decode(utf8.encode(
           response['choices'][0]['message']['content'] as String,
         ));
-        // Получение количества использованных токенов
-        final tokens = response['usage']?['total_tokens'] as int? ?? 0;
+        // Получение количества использованных токенов (безопасный парсинг int/double)
+        final tokensRaw = response['usage']?['total_tokens'];
+        final tokens = tokensRaw is int
+            ? tokensRaw
+            : tokensRaw is double
+                ? tokensRaw.toInt()
+                : 0;
 
         // Трекинг аналитики, если включен
         if (trackAnalytics) {
@@ -219,9 +292,20 @@ class ChatProvider with ChangeNotifier {
         }
 
         // Создание и добавление сообщения AI
-        // Получение количества токенов из ответа
-        final promptTokens = response['usage']['prompt_tokens'] ?? 0;
-        final completionTokens = response['usage']['completion_tokens'] ?? 0;
+        // Получение количества токенов из ответа (безопасный парсинг int/double)
+        final promptTokensRaw = response['usage']['prompt_tokens'];
+        final promptTokens = promptTokensRaw is int
+            ? promptTokensRaw
+            : promptTokensRaw is double
+                ? promptTokensRaw.toInt()
+                : 0;
+
+        final completionTokensRaw = response['usage']['completion_tokens'];
+        final completionTokens = completionTokensRaw is int
+            ? completionTokensRaw
+            : completionTokensRaw is double
+                ? completionTokensRaw.toInt()
+                : 0;
 
         final totalCost = response['usage']?['total_cost'];
 
@@ -251,6 +335,11 @@ class ChatProvider with ChangeNotifier {
         // Сохранение сообщения AI
         await _saveMessage(aiMessage);
 
+        // Обновляем расходы если есть стоимость (безопасный вызов через ?.)
+        if (cost > 0) {
+          _expensesProvider?.refresh();
+        }
+
         // Обновление баланса после успешного сообщения
         await _loadBalance();
       } else {
@@ -259,15 +348,21 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       // Логирование ошибок отправки сообщения
       _log('Error sending message: $e');
-      // Добавление сообщения об ошибке
-      final errorMessage = ChatMessage(
-        content: utf8.decode(utf8.encode('Error: $e')),
-        isUser: false,
-        modelId: _currentModel,
-      );
-      _messages.add(errorMessage);
-      // Сохранение сообщения об ошибке
-      await _saveMessage(errorMessage);
+
+      // Определяем тип ошибки и устанавливаем соответствующее состояние
+      final errorString = e.toString();
+      if (errorString.contains('INVALID_API_KEY')) {
+        _setError(ChatError.invalidApiKey);
+      } else if (errorString.contains('SocketException') ||
+          errorString.contains('Connection refused') ||
+          errorString.contains('Network is unreachable')) {
+        _setError(ChatError.networkError);
+      } else {
+        _setError(ChatError.serverError);
+      }
+
+      // Ошибки отображаются только через ChatError state и Snackbar
+      // НЕ добавляем errorMessage в чат
     } finally {
       // Сброс флага загрузки
       _isLoading = false;
@@ -277,11 +372,19 @@ class ChatProvider with ChangeNotifier {
   }
 
   // Метод установки текущей модели
-  void setCurrentModel(String modelId) {
+  Future<void> setCurrentModel(String modelId) async {
     // Установка новой модели
     _currentModel = modelId;
+    // Сохранение модели в настройках
+    await _settings.setModel(modelId);
     // Уведомление слушателей об изменениях
     notifyListeners();
+  }
+
+  // Метод повторной инициализации провайдера (вызывается после сохранения API ключа)
+  Future<void> reinitialize() async {
+    _log('Reinitializing provider after settings update...');
+    await _initializeProvider();
   }
 
   // Метод очистки истории
@@ -360,7 +463,13 @@ class ChatProvider with ChangeNotifier {
   }
 
   String formatPricing(double pricing) {
-    return _api.formatPricing(pricing);
+    if (_settings.apiKey == null || _settings.apiKey!.isEmpty) {
+      return pricing.toStringAsFixed(6);
+    }
+    return OpenRouterClient(
+      apiKey: _settings.apiKey!.trim(),
+      baseUrl: _settings.baseUrl,
+    ).formatPricing(pricing);
   }
 
   // Метод экспорта истории
