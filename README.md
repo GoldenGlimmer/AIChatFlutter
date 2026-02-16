@@ -227,6 +227,8 @@ flutter run
 
 ### Model Selection
 
+Возможность выбора моделей
+
 ![model_selection](assets/screenshots/model_selection.PNG)
 
 ### Usage Statistics
