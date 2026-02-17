@@ -30,7 +30,7 @@
 1. Клонируйте репозиторий:
 
 ```bash
-git clone
+git clone https://github.com/GoldenGlimmer/AIChatFlutter.git
 cd AIChatFlutter
 ```
 
@@ -275,3 +275,23 @@ flutter run
 ```
 
 Если все установлено правильно, приложение должно запуститься на выбранном устройстве (эмулятор Android, iOS или Windows).
+
+## Первичная настройка приложения
+
+После запуска:
+
+1. Откройте Settings Screen
+2. Выберите provider:
+
+OpenRouter:
+https://openrouter.ai/api/v1
+
+или
+
+VseGPT:
+https://api.vsegpt.ru/v1
+
+3. Введите API key
+4. Сохраните настройки
+
+После этого можно использовать приложение.
