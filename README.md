@@ -1,55 +1,58 @@
-# AIChatFlutter — Production-Ready AI Chat Client (Flutter)
+# AIChatFlutter — production-ready AI chat client на Flutter
 
-Production-ready Flutter приложение для общения с AI через OpenRouter и VseGPT с аналитикой расходов, статистикой использования и современной layered architecture.
+Мультиплатформенное Flutter приложение для общения с AI через OpenRouter и VseGPT.
 
-Проект разработан как portfolio-level production application.
+Проект реализован с использованием production-подходов и clean architecture.  
+Разработан как portfolio-level приложение.
 
 ---
 
-# Features
+# Основные возможности
 
 ## AI Chat
 
-- Поддержка OpenRouter.ai и VseGPT.ru
+- Поддержка OpenRouter и VseGPT
 - Выбор моделей
 - Отправка и получение сообщений
 - Подсчёт токенов
 - Подсчёт стоимости сообщений
 - Отображение баланса
+- Сохранение истории сообщений
 
 ---
 
 ## Settings Screen
 
-Настройка прямо в приложении:
+Настройка выполняется прямо в приложении:
 
 - API key
-- Provider selection
+- выбор provider
 - Base URL
 - Max tokens
 - Temperature
 
-.env file не используется.
+.env файл не используется.
 
 ---
 
-## Analytics / Statistics
+## Statistics Screen
 
-Отслеживание:
+Отображает:
 
-- total tokens
-- total cost
-- model usage
-- response times
+- общее количество токенов
+- общую стоимость
+- использование моделей
+- время ответа моделей
+- баланс аккаунта
 
 ---
 
 ## Expenses Screen
 
-График расходов:
+График расходов по дням:
 
 - расходы по дням
-- total expenses
+- общий расход
 - persistent storage
 - immutable data model
 
@@ -57,86 +60,80 @@ Production-ready Flutter приложение для общения с AI чер
 
 ## Production Error Handling
 
-State-driven error system:
+Реализована state-driven система обработки ошибок:
 
-- missing API key
-- invalid API key
+- отсутствует API key
+- неправильный API key
 - network errors
 - API errors
 
-Без использования exceptions для управления логикой.
+UI реагирует на состояние без использования exceptions для управления логикой.
 
 ---
 
-# Architecture
+# Архитектура проекта
 
 Используется layered clean architecture:
+
+```
+UI Layer
+screens/
+↓
+State Layer
+providers/
+↓
+Domain Layer
+repositories/
+↓
+Data Layer
+services/
+↓
+External Layer
+API / Database
+```
+
+---
+
+# Структура проекта
 
 ```
 lib/
 
  api/
    openrouter_client.dart
-   → REST API client
 
  models/
    message.dart
    chat_error.dart
    expenses_data.dart
-   → immutable data models
 
  providers/
    chat_provider.dart
    expenses_provider.dart
-   → state management
 
  repositories/
    expenses_repository.dart
-   → business logic layer
-   → abstraction between provider and services
 
  services/
    analytics_service.dart
    database_service.dart
    settings_service.dart
-   → persistence layer
 
  screens/
    chat_screen.dart
    settings_screen.dart
    statistics_screen.dart
    expenses_screen.dart
-   → UI layer
 
  utils/
    safe_parsing.dart
-   → safe JSON parsing utilities
 
  main.dart
-   → app entry point
 ```
 
 ---
 
-# Architecture Overview
-
-Layer responsibilities:
-
-UI (screens)
-↓
-Providers (state)
-↓
-Repositories (business logic)
-↓
-Services (data access)
-↓
-API / Database
-
-Это production architecture pattern.
-
----
-
-# Tech Stack
+# Используемые технологии
 
 - Flutter
 - Dart
@@ -146,11 +143,11 @@ API / Database
 - OpenRouter API
 - VseGPT API
 - Charts
-- Clean architecture
+- Clean Architecture
 
 ---
 
-# Persistence
+# Хранение данных
 
 Локально сохраняется:
 
@@ -162,35 +159,30 @@ API / Database
 
 ---
 
-# Installation
+# Установка
 
-```
+```bash
 git clone https://github.com/GoldenGlimmer/AIChatFlutter.git
 cd AIChatFlutter
 flutter pub get
 flutter run
 ```
 
----
-
-# Configuration
-
 Настройка выполняется через Settings Screen.
 
-.env file не требуется.
-
 ---
 
-# Supported Platforms
+# Поддерживаемые платформы
 
-- Windows
 - Android
+- Windows
 - Linux
-- (Flutter multi-platform ready)
+
+Flutter multi-platform ready.
 
 ---
 
-# Production-level features
+# Production-level особенности
 
 - layered architecture
 - repository pattern
@@ -200,6 +192,34 @@ flutter run
 - analytics system
 - safe parsing layer
 - production error handling
+
+---
+
+# Скриншоты
+
+## Chat Screen
+
+![chat](assets/screenshots/chat.PNG)
+
+## Model Selection
+
+![model_selection](assets/screenshots/model_selection.PNG)
+
+## Statistics Screen
+
+![statistics](assets/screenshots/statistics.PNG)
+
+## Expenses Screen
+
+![expenses](assets/screenshots/expenses.PNG)
+
+## Settings Screen
+
+![settings](assets/screenshots/settings.PNG)
+
+## Error handling
+
+![error_snackbar](assets/screenshots/error_snackbar.PNG)
 
 ---
 
@@ -217,48 +237,10 @@ flutter run
 
 ---
 
-## Screenshots
-
-### Chat Interface
-
-Общение в режиме реального времени
-
-![chat](assets/screenshots/chat.PNG)
-
-### Model Selection
-
-Возможность выбора моделей
-
-![model_selection](assets/screenshots/model_selection.PNG)
-
-### Usage Statistics
-
-Анализ использования токенов, баланса и моделей.
-
-![statistics](assets/screenshots/statistics.PNG)
-
-### Expense Tracking
-
-Визуализация ежедневных расходов с помощью диаграммы.
-
-![expenses](assets/screenshots/expenses.PNG)
-
-### Settings Screen
-
-Настройка провайдера и управление ключами API.
-
-![settings](assets/screenshots/settings.PNG)
-
-### Error snackbar
-
-Демонстрация ошибки
-
-![error_snackbar](assets/screenshots/error_snackbar.PNG)
-
 # Author
 
-GitHub:
-https://github.com/GoldenGlimmer
+Yaroslav Salov  
+GitHub: https://github.com/GoldenGlimmer
 
 ---
 
