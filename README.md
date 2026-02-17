@@ -175,7 +175,7 @@ flutter run
 # Поддерживаемые платформы
 
 - Android
-- IOS
+- iOS
 - Windows
 - Linux
 
