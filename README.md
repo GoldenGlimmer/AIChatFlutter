@@ -103,9 +103,9 @@ lib/
    openrouter_client.dart
 
  models/
-   message.dart
    chat_error.dart
    expenses_data.dart
+   message.dart
 
  providers/
    chat_provider.dart
@@ -114,16 +114,16 @@ lib/
  repositories/
    expenses_repository.dart
 
+ screens/
+   chat_screen.dart
+   expenses_screen.dart
+   settings_screen.dart
+   statistics_screen.dart
+
  services/
    analytics_service.dart
    database_service.dart
    settings_service.dart
-
- screens/
-   chat_screen.dart
-   settings_screen.dart
-   statistics_screen.dart
-   expenses_screen.dart
 
  utils/
    safe_parsing.dart
